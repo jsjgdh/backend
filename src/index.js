@@ -26,7 +26,32 @@ const app = express()
 const PORT = process.env.PORT || 3001
 
 // Middleware
-app.use(cors({ origin: '*', credentials: true }))
+// Support multiple CORS origins (production + development)
+const allowedOrigins = process.env.CORS_ORIGIN
+  ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
+  : [
+    'https://frontend-4wosd4ql8-jsjgdh-4059s-projects.vercel.app',
+    'http://localhost:5173'
+  ]
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow requests with no origin (like mobile apps, curl, Postman)
+    if (!origin) return callback(null, true)
+
+    if (allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      console.warn(`CORS blocked request from origin: ${origin}`)
+      callback(new Error('Not allowed by CORS'), false)
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
+}))
+app.options('*', cors())
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(morgan('combined'))
@@ -41,11 +66,15 @@ if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true })
 app.use('/uploads', express.static(uploadsDir))
 app.use('/', express.static(publicDir))
 
-// Connect to database
-connectDB()
-
-// Seed users
-seedUsers()
+  // Connect to database and seed users
+  ; (async () => {
+    try {
+      await connectDB()
+      await seedUsers()
+    } catch (error) {
+      console.error('Database initialization error:', error.message)
+    }
+  })()
 
 // API Routes
 app.use('/api/auth', authRoutes)
@@ -57,7 +86,35 @@ app.use('/api', invoiceRoutes)
 app.use('/api', auditRoutes)
 app.use('/api/export', exportRoutes)
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  const mongoose = require('mongoose')
+  res.json({
+    status: 'ok',
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development',
+    cors_allowed_origins: allowedOrigins,
+    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    uptime: process.uptime()
+  })
+})
+
+// API health check (requires authentication)
+app.get('/api/health', (req, res) => {
+  res.json({
+    status: 'ok',
+    message: 'API is operational',
+    timestamp: new Date().toISOString()
+  })
+})
+
+// Error handler
+app.use((err, req, res, next) => {
+  console.error('Unhandled error:', err)
+  res.status(500).json({ error: 'internal_server_error' })
+})
+
 // Start server
 app.listen(PORT, () => {
-  console.log(`Server running at http://localhost:${PORT}`)
+  console.log(`Server running on port ${PORT}`)
 })

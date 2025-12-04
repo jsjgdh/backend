@@ -8,12 +8,14 @@ const connectDB = async () => {
     try {
         await mongoose.connect(MONGO_URI, {
             useNewUrlParser: true,
-            useUnifiedTopology: true
+            useUnifiedTopology: true,
+            serverSelectionTimeoutMS: 5000 // Timeout after 5 seconds
         })
-        console.log('MongoDB connected')
+        console.log('MongoDB connected successfully')
     } catch (error) {
-        console.error('MongoDB connection error:', error)
-        process.exit(1)
+        console.error('MongoDB connection error:', error.message)
+        console.warn('Server will continue running without database connection')
+        // Don't exit process - allow server to run for testing
     }
 }
 
