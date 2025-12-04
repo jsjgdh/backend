@@ -114,7 +114,13 @@ app.use((err, req, res, next) => {
   res.status(500).json({ error: 'internal_server_error' })
 })
 
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`)
-})
+// Start server (for local development)
+// For Vercel serverless, the app is exported and Vercel handles the server
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`)
+  })
+}
+
+// Export for Vercel serverless
+module.exports = app
