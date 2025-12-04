@@ -64,10 +64,20 @@ app.use(express.urlencoded({ extended: true }))
 app.use(morgan('combined'))
 
 // Setup directories
-const uploadsDir = path.join(__dirname, '..', 'uploads')
-const publicDir = path.join(__dirname, '..', 'public')
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
-if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true })
+// In Vercel serverless, use /tmp/ (only writable directory)
+// In local development, use project directories
+const isVercel = process.env.VERCEL === '1' || process.env.VERCEL === 'true'
+const uploadsDir = isVercel ? '/tmp/uploads' : path.join(__dirname, '..', 'uploads')
+const publicDir = isVercel ? '/tmp/public' : path.join(__dirname, '..', 'public')
+
+// Create directories if they don't exist (only works in /tmp/ on Vercel)
+try {
+  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true })
+  if (!fs.existsSync(publicDir)) fs.mkdirSync(publicDir, { recursive: true })
+  console.log('Directories created:', { uploadsDir, publicDir })
+} catch (error) {
+  console.warn('Could not create directories (may be read-only filesystem):', error.message)
+}
 
 // Static file serving
 app.use('/uploads', express.static(uploadsDir))
