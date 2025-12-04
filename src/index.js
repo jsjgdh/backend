@@ -30,11 +30,12 @@ const PORT = process.env.PORT || 3001
 const allowedOrigins = process.env.CORS_ORIGIN
   ? process.env.CORS_ORIGIN.split(',').map(o => o.trim())
   : [
-    'https://frontend-4wosd4ql8-jsjgdh-4059s-projects.vercel.app',
+    'https://frontend-roan-pi-68.vercel.app',
     'http://localhost:5173'
   ]
 
-app.use(cors({
+// CORS configuration with explicit headers for preflight requests
+const corsOptions = {
   origin: (origin, callback) => {
     // Allow requests with no origin (like mobile apps, curl, Postman)
     if (!origin) return callback(null, true)
@@ -46,12 +47,18 @@ app.use(cors({
       callback(new Error('Not allowed by CORS'), false)
     }
   },
-  credentials: true,
+  credentials: true, // Allow cookies and authorization headers
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
-}))
-app.options('*', cors())
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range'],
+  preflightContinue: false, // Pass preflight response to next handler
+  optionsSuccessStatus: 204 // Some legacy browsers choke on 204
+}
+
+app.use(cors(corsOptions))
+
+// Explicit OPTIONS handler for all routes
+app.options('*', cors(corsOptions))
 app.use(express.json({ limit: '2mb' }))
 app.use(express.urlencoded({ extended: true }))
 app.use(morgan('combined'))
